@@ -1,6 +1,7 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = 3001; // Elige un puerto diferente al de React (3000)
@@ -57,6 +58,59 @@ app.post('/api/login', async (req, res) => {
         res.status(500).json({ success: false, message: 'Error en el servidor.' });
     }
 });
+
+// ----------------------------------------------------------------------
+// ENDPOINT DE CONTACTO (Ruta POST: /api/contacto)
+// ----------------------------------------------------------------------
+app.post('/api/contacto', async (req, res) => {
+    const { nombre, email, telefono, mensaje } = req.body;
+
+    if (!nombre || !email || !mensaje) {
+        return res.status(400).json({ success: false, message: 'Faltan datos obligatorios.' });
+    }
+
+    try {
+        // 1️⃣ Guardar el mensaje en la base de datos
+        const [result] = await db.query(
+            'INSERT INTO contactos (nombre, email, telefono, mensaje) VALUES (?, ?, ?, ?)',
+            [nombre, email, telefono, mensaje]
+        );
+
+        // 2️⃣ Configurar el transporte de correo
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: '@gmail.com', // tu correo
+                pass: '', // contraseña o clave de aplicación
+            },
+        });
+
+        // 3️⃣ Configurar el contenido del email
+        const mailOptions = {
+            from: `"Formulario Barbería" <@gmail.com>`,
+            to: '@gmail.com', // a dónde querés recibir los mensajes
+            subject: 'Nuevo mensaje de contacto recibido',
+            html: `
+                <h2>Nuevo mensaje de contacto</h2>
+                <p><strong>Nombre:</strong> ${nombre}</p>
+                <p><strong>Email:</strong> ${email}</p>
+                <p><strong>Teléfono:</strong> ${telefono}</p>
+                <p><strong>Mensaje:</strong></p>
+                <p>${mensaje}</p>
+            `,
+        };
+
+        // 4️⃣ Enviar el correo
+        await transporter.sendMail(mailOptions);
+
+        res.json({ success: true, message: 'Mensaje guardado y correo enviado correctamente.' });
+    } catch (error) {
+        console.error('Error al procesar el mensaje:', error);
+        res.status(500).json({ success: false, message: 'Error al enviar el correo o guardar el mensaje.' });
+    }
+});
+
+
 
 // ----------------------------------------------------------------------
 // INICIO DEL SERVIDOR
