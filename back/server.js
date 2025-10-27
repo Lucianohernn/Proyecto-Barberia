@@ -110,6 +110,73 @@ app.post('/api/contacto', async (req, res) => {
     }
 });
 
+// ----------------------------------------------------------------------
+// ENDPOINTS DE RESERVAS
+// ----------------------------------------------------------------------
+
+// Crear una reserva
+app.post('/api/reservas', async (req, res) => {
+    const { usuario, fecha, hora, servicio } = req.body;
+
+    if (!usuario || !fecha || !hora) {
+        return res.status(400).json({ success: false, message: 'Faltan datos para la reserva.' });
+    }
+
+    try {
+        // Verificar si ya hay una reserva en ese horario
+        const [existe] = await db.query(
+            'SELECT * FROM reservas WHERE fecha = ? AND hora = ? AND estado = "reservado"',
+            [fecha, hora]
+        );
+
+        if (existe.length > 0) {
+            return res.json({ success: false, message: 'Ese horario ya está reservado.' });
+        }
+
+        // Insertar la nueva reserva
+        await db.query(
+            'INSERT INTO reservas (usuario, fecha, hora, servicio) VALUES (?, ?, ?, ?)',
+            [usuario, fecha, hora, servicio || null]
+        );
+
+        res.json({ success: true, message: 'Reserva realizada con éxito.' });
+    } catch (error) {
+        console.error('Error al crear reserva:', error);
+        res.status(500).json({ success: false, message: 'Error en el servidor.' });
+    }
+});
+
+// Obtener reservas del usuario logueado
+app.get('/api/reservas/:usuario', async (req, res) => {
+    const { usuario } = req.params;
+    try {
+        const [rows] = await db.query(
+            'SELECT * FROM reservas WHERE usuario = ? AND estado = "reservado"',
+            [usuario]
+        );
+        res.json(rows);
+    } catch (error) {
+        console.error('Error al obtener reservas:', error);
+        res.status(500).json({ success: false, message: 'Error en el servidor.' });
+    }
+});
+
+// Cancelar una reserva
+app.delete('/api/reservas/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await db.query(
+            'UPDATE reservas SET estado = "cancelado" WHERE id = ?',
+            [id]
+        );
+        res.json({ success: true, message: 'Reserva cancelada correctamente.' });
+    } catch (error) {
+        console.error('Error al cancelar reserva:', error);
+        res.status(500).json({ success: false, message: 'Error en el servidor.' });
+    }
+});
+
 
 
 // ----------------------------------------------------------------------
