@@ -1,0 +1,39 @@
+.navbar {
+  background: rgba(135, 112, 0, 0.75);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+.mi-navbar .nav-link {
+    color: #ffffff !important;
+    font-size: 20px;
+    font-weight: 600;
+    position: relative;
+    transition: color 0.3s ease;
+}
+
+.mi-navbar .nav-link:hover {
+    color: #ffef9a !important; /* Color amarillo brillante al pasar el mouse */
+}
+
+.mi-navbar .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background-color: #fff;
+    transition: width 0.3s ease;
+}
+.mi-navbar .nav-link.active {
+  background-color: transparent !important;
+  color: #ffffff !important;
+}
+.mi-navbar .nav-link.active::after {
+    width: 100%;
+    background-color: #ffffff;
+}
+
+.mi-navbar .nav-link:hover::after {
+    width: 100%;
+}

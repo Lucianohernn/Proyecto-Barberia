@@ -1,0 +1,32 @@
+.container {
+    color: black;
+}
+
+
+.titulo h2 {
+    font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #222;
+  letter-spacing: 1px;
+}
+
+
+.img-nosotros {
+    max-width: 530px;   /* Tamaño máximo */
+    width: 100%;        /* Se ajusta al contenedor */
+    height: 350px;       /* Mantiene proporción */
+    object-fit: cover;  /* Opcional, recorta si es necesario */
+    display: block;
+    margin: 0 auto;
+    box-shadow: 0 4px 6px 0 hsla(0 ,0%, 0%,0.2);
+
+}
+/* Galería de imágenes iguales */
+.img-galeria {
+  width: 100%;
+  height: 250px; /* ajusta a lo que quede mejor */
+  object-fit: cover; /* recorta manteniendo proporción */
+  border-radius: 10px;
+  box-shadow: 0 4px 6px 0 hsla(0 ,0%, 0%,0.2);
+}

@@ -1,0 +1,45 @@
+.novedades-container {
+  background-color: #f9f9f9;
+  padding: 60px 5%;
+  border-radius: 8px;
+  margin: 0 auto;
+  max-width: 95%;
+}
+
+.novedades-container h2 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  color: #222;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.novedades-container p.text-muted {
+  color: #666;
+}
+
+.novedades-card {
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.novedades-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.novedades-card .card-title {
+  font-weight: 600;
+  color: #000;
+}
+
+.novedades-card .card-text {
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.novedades-card .text-muted {
+  font-size: 0.8rem;
+  color: #888;
+}
