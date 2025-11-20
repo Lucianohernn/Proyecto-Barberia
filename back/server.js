@@ -2,6 +2,7 @@ const express = require('express');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
+const bcrypt = require ('bcrypt');
 
 const app = express();
 const PORT = 3001; // Elige un puerto diferente al de React (3000)
@@ -17,8 +18,8 @@ app.use(express.json()); // Permite que el servidor lea datos JSON en el cuerpo 
 const db = mysql.createPool({
     host: 'localhost',
     user: 'root', // Usuario por defecto de XAMPP
-    password: '', // Contraseña por defecto de XAMPP (déjala vacía)
-    database: 'loginbarberia' // ¡CAMBIA ESTO! Debe ser el nombre de tu base de datos
+    password: '', // Contraseña por defecto de XAMPP
+    database: 'loginbarberia' // nombre de la base de datos
 });
 
 // ----------------------------------------------------------------------
@@ -33,31 +34,74 @@ app.post('/api/login', async (req, res) => {
     }
 
     try {
-        // 1. Prepara la consulta SQL para buscar el usuario y la contraseña
-        const [rows] = await db.query(
-            'SELECT * FROM login WHERE usuario = ? AND password = ?',
-            [username, password] // Los "?" son placeholders para prevenir ataques (SQL Injection)
-        );
+        // Buscar el usuario en la base
+        const [rows] = await db.query('SELECT * FROM login WHERE usuario = ?', [username]);
 
-        // 2. Comprueba si se encontró un usuario
-        if (rows.length === 1) {
-            // Usuario encontrado y credenciales correctas
-            const loggedInUser = rows[0].usuario; // 💡 Obtener el nombre de usuario de la fila
-            
-            res.json({ 
-                success: true, 
-                message: '¡Login exitoso!', 
-                user: loggedInUser // 💡 ENVIAR el nombre de usuario de vuelta
-            });
-        } else {
-            // Usuario no encontrado o credenciales incorrectas
-            res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
+        if (rows.length === 0) {
+            return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
         }
+
+        // Comparar la contraseña ingresada con la encriptada
+        const match = await bcrypt.compare(password, rows[0].password);
+
+        if (!match) {
+            return res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos.' });
+        }
+
+        // Si coincide, login exitoso
+        const loggedInUser = rows[0].usuario;
+
+        res.json({
+            success: true,
+            message: '¡Login exitoso!',
+            user: loggedInUser,
+            role: rows[0].tipo
+        });
+
     } catch (error) {
         console.error('Error al intentar iniciar sesión:', error);
         res.status(500).json({ success: false, message: 'Error en el servidor.' });
     }
 });
+
+// ----------------------------------------------------------------------
+// ENDPOINT DE REGISTRO (Ruta POST: /api/register)
+// ----------------------------------------------------------------------
+app.post('/api/register', async (req, res) => {
+    const { username, password } = req.body;
+
+    // Validación básica
+    if (!username || !password) {
+        return res.status(400).json({ success: false, message: 'Faltan credenciales.' });
+    }
+
+    try {
+        // Verificar si el usuario ya existe
+        const [existingUser] = await db.query(
+            'SELECT * FROM login WHERE usuario = ?',
+            [username]
+        );
+
+        if (existingUser.length > 0) {
+            return res.json({ success: false, message: 'El usuario ya existe.' });
+        }
+
+        // Encriptar contraseña
+        const hashedPassword = await bcrypt.hash(password, 5);
+
+        // 🔥 AHORA SÍ: Guardar tipo = "user"
+        await db.query(
+            'INSERT INTO login (usuario, password, tipo) VALUES (?, ?, ?)',
+            [username, hashedPassword, 'user']
+        );
+
+        res.json({ success: true, message: 'Usuario registrado correctamente.' });
+    } catch (error) {
+        console.error('Error al registrar usuario:', error);
+        res.status(500).json({ success: false, message: 'Error al registrar el usuario.' });
+    }
+});
+
 
 // ----------------------------------------------------------------------
 // ENDPOINT DE CONTACTO (Ruta POST: /api/contacto)
@@ -70,26 +114,27 @@ app.post('/api/contacto', async (req, res) => {
     }
 
     try {
-        // 1️⃣ Guardar el mensaje en la base de datos
-        const [result] = await db.query(
+        // 1️⃣ Guardar en la BD
+        await db.query(
             'INSERT INTO contactos (nombre, email, telefono, mensaje) VALUES (?, ?, ?, ?)',
             [nombre, email, telefono, mensaje]
         );
 
-        // 2️⃣ Configurar el transporte de correo
+        // 2️⃣ Configurar MAILTRAP
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: "smtp.mailtrap.io",
+            port: 2525,
             auth: {
-                user: '@gmail.com', // tu correo
-                pass: '', // contraseña o clave de aplicación
+                user: "ba587ed8461f22",  // ⚠️ Reemplazar
+                pass: "2ed528252d1401"   // ⚠️ Reemplazar
             },
         });
 
-        // 3️⃣ Configurar el contenido del email
+        // 3️⃣ Configurar el email
         const mailOptions = {
-            from: `"Formulario Barbería" <@gmail.com>`,
-            to: '@gmail.com', // a dónde querés recibir los mensajes
-            subject: 'Nuevo mensaje de contacto recibido',
+            from: '"Formulario Barbería" <no-reply@barberia.com>',
+            to: 'test@inbox.mailtrap.io', // Mail atrapado en Mailtrap
+            subject: 'Nuevo mensaje de contacto',
             html: `
                 <h2>Nuevo mensaje de contacto</h2>
                 <p><strong>Nombre:</strong> ${nombre}</p>
@@ -100,12 +145,16 @@ app.post('/api/contacto', async (req, res) => {
             `,
         };
 
-        // 4️⃣ Enviar el correo
+        // 4️⃣ Enviar correo (a Mailtrap)
         await transporter.sendMail(mailOptions);
 
-        res.json({ success: true, message: 'Mensaje guardado y correo enviado correctamente.' });
+        res.json({
+            success: true,
+            message: 'Mensaje guardado y enviado a Mailtrap correctamente.'
+        });
+
     } catch (error) {
-        console.error('Error al procesar el mensaje:', error);
+        console.error('Error al procesar mensaje:', error);
         res.status(500).json({ success: false, message: 'Error al enviar el correo o guardar el mensaje.' });
     }
 });
@@ -178,6 +227,56 @@ app.delete('/api/reservas/:id', async (req, res) => {
 });
 
 
+// ----------------------------------------------------------------------
+// ENDPOINT: Crear nueva novedad
+// ----------------------------------------------------------------------
+app.post('/api/novedades', async (req, res) => {
+    const { img_id, titulo, subtitulo, cuerpo } = req.body;
+
+    if (!titulo || !subtitulo || !cuerpo) {
+        return res.status(400).json({ success: false, message: 'Faltan datos obligatorios.' });
+    }
+
+    try {
+        await db.query(
+            'INSERT INTO novedades (img_id, titulo, subtitulo, cuerpo) VALUES (?, ?, ?, ?)',
+            [img_id || null, titulo, subtitulo, cuerpo]
+        );
+
+        res.json({ success: true, message: 'Novedad creada correctamente.' });
+    } catch (error) {
+        console.error('Error al crear novedad:', error);
+        res.status(500).json({ success: false, message: 'Error en el servidor.' });
+    }
+});
+
+// ----------------------------------------------------------------------
+// ENDPOINT: Obtener todas las novedades
+// ----------------------------------------------------------------------
+app.get('/api/novedades', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT * FROM novedades ORDER BY id DESC');
+        res.json(rows);
+    } catch (error) {
+        console.error('Error al obtener novedades:', error);
+        res.status(500).json({ success: false, message: 'Error en el servidor.' });
+    }
+});
+
+// ----------------------------------------------------------------------
+// ENDPOINT: Eliminar novedad por ID
+// ----------------------------------------------------------------------
+app.delete('/api/novedades/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await db.query('DELETE FROM novedades WHERE id = ?', [id]);
+        res.json({ success: true, message: 'Novedad eliminada correctamente.' });
+    } catch (error) {
+        console.error('Error al eliminar novedad:', error);
+        res.status(500).json({ success: false, message: 'Error en el servidor.' });
+    }
+});
 
 // ----------------------------------------------------------------------
 // INICIO DEL SERVIDOR
